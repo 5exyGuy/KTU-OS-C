@@ -1,1 +1,1 @@
-# KTU-OS-C
+# KTU-OS-Clang
