@@ -98,19 +98,17 @@ int aioWait(struct aiocb* aior) {
 int main(){
     struct aiocb aior;
     char buffer[BUFFLEN];
-    int n = 0, t = 0;
+    int n = 0, size = 0;
     int d = openFile("/dev/urandom", O_RDONLY);
 	
     while (n < BUFFLEN) {
 		if (aioRead(d, &aior, buffer, n, BUFFLEN - n) != 0)
 			exit(EXIT_FAILURE);
 
-		t = aioWait(&aior);
-        if (t > 0) {
-            n += t;
+		size = aioWait(&aior);
+        if (size > 0) {
+            n += size;
             printf("%d bytes\n", n);
-        } else {
-            exit(EXIT_FAILURE);
         }
     }
 
