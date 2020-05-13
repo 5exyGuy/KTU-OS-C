@@ -14,12 +14,12 @@
 
 int openFile(const char* path, int flags);
 int closeFile(int fd);
-int aioRead(struct aiocb *aiocbp);
-int testDummy(const void* data, int n);
+int aioRead(int desc, struct aiocb* aior, char* buf, int bufOffset, int bytes)
+// int testDummy(const void* data, int n);
 int aioSuspend(const struct aiocb* aiorp);
 int aioReturn(struct aiocb *aiocbp);
-int readBytes(int desc, struct aiocb* block, char* buf, int bufOffset, int bytes);
-int ps_read_wait(struct aiocb *block);
+int aioRead(int desc, struct aiocb* aior, char* buf, int bufOffset, int bytes);
+int aioWait(struct aiocb* aior)
 
 int openFile(const char* path, int flags) {
     int d = open(path, flags);
@@ -39,22 +39,13 @@ int closeFile(int fd){
     return rv;
 }
 
-int aioRead(struct aiocb *aiocbp) {
-    int rv = aio_read(aiocbp);
-    if(rv == -1){
-        perror("aioRead failed");
-        abort();
-    }
-    return rv;
-}
-
-int testDummy(const void* data, int n) {
-    int cnt = 0;
-    for(int i = 0; i < n; i++)
-        if(((char*)data)[i] == '\0') cnt++;
-    printf("Number of '0' in data: %d\n", cnt);
-    return 1;
-}
+// int testDummy(const void* data, int n) {
+//     int cnt = 0;
+//     for(int i = 0; i < n; i++)
+//         if(((char*)data)[i] == '\0') cnt++;
+//     printf("Number of '0' in data: %d\n", cnt);
+//     return 1;
+// }
 
 int aioSuspend(const struct aiocb* aiorp) {
     const struct aiocb *aioptr[1];
@@ -76,42 +67,45 @@ int aioReturn(struct aiocb *aiocbp) {
     return rv;
 }
 
-int readBytes(int desc, struct aiocb* block, char* buf, int bufOffset, int bytes) {
-    memset((void*) block, 0, sizeof(struct aiocb));
-    block->aio_fildes = desc;
-    block->aio_buf = buf + bufOffset;
-    block->aio_nbytes = bytes;
-    block->aio_offset = 0;
-    if (aioRead(block) != 0){
-        perror("readBytes failed");
-        return -1;
-    }
-    return 0;
+int aioRead(int desc, struct aiocb* aior, char* buf, int bufOffset, int bytes) {
+    memset((void*) aior, 0, sizeof(struct aiocb));
+    aior->aio_fildes = desc;
+    aior->aio_buf = buf + bufOffset;
+    aior->aio_nbytes = bytes;
+    aior->aio_offset = 0;
+
+	int rv = aio_read(aior);
+	if(rv == -1){
+		perror("aioRead failed");
+		abort();
+	}
+
+    return rv;
 }
 
-int readWait(struct aiocb* block) {
+int aioWait(struct aiocb* aior) {
     const struct aiocb *temp[1];
-    temp[0] = block;
+    temp[0] = aior;
 
-    if (aioSuspend(block) != 0){
+    if (aioSuspend(aior) != 0){
         perror("readWait failed");
         return -1;
     }
 
-    return aioReturn(block);
+    return aioReturn(aior);
 }
 
 int main(){
     struct aiocb aior;
     char buffer[BUFFLEN];
-    int n = 0, t;
+    int n = 0, t = 0;
     int d = openFile("/dev/urandom", O_RDONLY);
 	
     while (n < BUFFLEN) {
-        if (readBytes(d, &aior, buffer, n, BUFFLEN - n) != 0)
+		if (aioRead(d, &aior, buffer, n, BUFFLEN - n) != 0)
 			exit(EXIT_FAILURE);
 
-		t = readWait(&aior);
+		t = aioWait(&aior);
         if (t > 0) {
             n += t;
             printf("%d bytes\n", n);
