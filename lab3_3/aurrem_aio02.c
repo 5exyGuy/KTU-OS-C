@@ -34,7 +34,7 @@ int openFile(const char* path, int flags) {
 
 int closeFile(int fd){
     int rv = close(fd);
-    if(rv != 0) perror("closeFile failed");
+    if(rv == -1) perror("closeFile failed");
     else puts("closeFile successed");
     return rv;
 }
@@ -51,7 +51,7 @@ int aioSuspend(const struct aiocb* aiorp) {
     const struct aiocb *aioptr[1];
 	aioptr[0] = aiorp;
 	int rv = aio_suspend(aioptr, 1, NULL);
-	if(rv != 0){
+	if(rv == -1){
 	  perror("aioSuspend failed");
 	  abort();
 	}
@@ -87,7 +87,7 @@ int aioWait(struct aiocb* aior) {
     const struct aiocb *temp[1];
     temp[0] = aior;
 
-    if (aioSuspend(aior) != 0){
+    if (aioSuspend(aior) == -1){
         perror("readWait failed");
         return -1;
     }
@@ -102,9 +102,7 @@ int main(){
     int d = openFile("/dev/urandom", O_RDONLY);
 	
     while (n < BUFFLEN) {
-		if (aioRead(d, &aior, buffer, n, BUFFLEN - n) != 0)
-			exit(EXIT_FAILURE);
-
+		aioRead(d, &aior, buffer, n, BUFFLEN - n);
 		size = aioWait(&aior);
         if (size > 0) {
             n += size;
